@@ -16,3 +16,5 @@ power_plays <- hock |>
   filter((Home.Team.Skaters == 5 & Away.Team.Skaters ==4)|
            (Home.Team.Skaters == 4 & Away.Team.Skaters ==5))
 
+
+
