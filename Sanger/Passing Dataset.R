@@ -1,5 +1,6 @@
 library(tidyverse)
 library(dplyr)
+library(tidyr)
 
 ## Game 1 CSV's
 
@@ -957,4 +958,77 @@ pass_PP$dist_from_reciever = ifelse(pass_PP$team_name_passer == pass_PP$team_nam
 #then, make vars shot rushed = 1 if dist from passer < 5 or whatever
 
 
+#defining number of defenders near the passing lane as within __ feet
+#wider_pass_pp$num_def_near_pl
+
+#for shot rushed should i make it an indicator variable, or # of defenders
+
+
+for_factor_pass_PP = subset(pass_PP, !is.na(jersey_number_t) & !is.na(dist_from_pl))
+new_wider = nest(for_factor_pass_PP, .by = c("player_name", "clock_seconds", "x_coord", "y_coord"))
+
+min_from_pl_f = function(new_wider){
+  mini_list = list()
+  for(pass in 1:322){
+    mini_list = append(mini_list, min(unnest(new_wider[pass, 5])$dist_from_pl, na.rm = TRUE))
+  }
+  return(mini_list)
+}
+
+#used 7 since 55" stick length (approximate) + 28.5" arm length (world woman average) ~= 7
+#essentially, 7' is their reach ability)
+num_def_near_pl_f = function(new_wider){
+  mini_list = list()
+  for(pass in 1:322){
+    mini_list = append(mini_list, length(which(unnest(new_wider[pass, 5])$dist_from_pl <= 7)))
+  }
+  return(mini_list)
+}
+
+pass_rushed_f = function(new_wider){
+  mini_list = list()
+  for(pass in 1:322){
+    mini_list = append(mini_list, ifelse(min(unnest(new_wider[pass, 5])$dist_from_passer, na.rm = TRUE) <= 7, 1, 0))
+  }
+  return(mini_list)
+}
+
+reciever_crowded_f = function(new_wider){
+  mini_list = list()
+  for(pass in 1:322){
+    mini_list = append(mini_list, ifelse(min(unnest(new_wider[pass, 5])$dist_from_reciever, na.rm = TRUE) <= 7, 1, 0))
+  }
+  return(mini_list)
+}
+
+new_wider$min_dist_from_pl = min_from_pl_f(new_wider)
+
+new_wider$num_def_near_pl = num_def_near_pl_f(new_wider)
+
+new_wider$pass_rushed = pass_rushed_f(new_wider)
+
+new_wider$reciever_crowded = reciever_crowded_f(new_wider)
+
+
+factor_variable_passes = new_wider
+
+factor_variable_passes$data = NULL
+
+
+
+event_PP_passes = rbind(event_G1_PP1, event_G1_PP2, event_G1_PP3, event_G1_PP5, event_G1_PP6,
+                        event_G2_PP1, event_G2_PP2, event_G2_PP4, event_G2_PP5, event_G2_PP6, 
+                        event_G3_PP1, event_G3_PP2, event_G3_PP3, event_G3_PP5, 
+                        event_G4_PP1, event_G4_PP2, event_G4_PP4, event_G4_PP5, 
+                        event_G5_PP1, event_G5_PP3, event_G5_PP4, event_G5_PP5, event_G5_PP6, 
+                        event_G6_PP1, event_G6_PP2, event_G6_PP3, event_G6_PP4, event_G6_PP5, event_G6_PP6, event_G6_PP7, event_G6_PP8)
+  
+event_PP_passes = subset(event_PP_passes, event == "Play")
+
+factor_variable_passes = merge(factor_variable_passes, event_PP_passes, 
+                               by = c("player_name", 
+                               "clock_seconds", "x_coord", "y_coord"), all.x = TRUE)
+factor_variable_passes$event_detail_1 = NULL
+factor_variable_passes$event_detail_2 = NULL
+factor_variable_passes$event_detail_3 = NULL
 
