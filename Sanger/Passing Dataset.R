@@ -955,31 +955,26 @@ pass_PP$dist_from_reciever = ifelse(pass_PP$team_name_passer == pass_PP$team_nam
         pass_PP$y_coord_2, 
         pass_PP$x_coord_t, pass_PP$y_coord_t))
 
-#then, make vars shot rushed = 1 if dist from passer < 5 or whatever
-
-
-#defining number of defenders near the passing lane as within __ feet
-#wider_pass_pp$num_def_near_pl
-
-#for shot rushed should i make it an indicator variable, or # of defenders
-
+three_off_and_def_check = nest(pass_PP, .by = c("player_name", "clock_seconds", "x_coord", "y_coord"))
 
 for_factor_pass_PP = subset(pass_PP, !is.na(jersey_number_t) & !is.na(dist_from_pl))
 new_wider = nest(for_factor_pass_PP, .by = c("player_name", "clock_seconds", "x_coord", "y_coord"))
 
 min_from_pl_f = function(new_wider){
   mini_list = list()
-  for(pass in 1:322){
+  n1 = nrow(new_wider)
+  for(pass in 1:n1){
     mini_list = append(mini_list, min(unnest(new_wider[pass, 5])$dist_from_pl, na.rm = TRUE))
   }
   return(mini_list)
 }
 
-#used 7 since 55" stick length (approximate) + 28.5" arm length (world woman average) ~= 7
-#essentially, 7' is their reach ability)
+#used 7ft since 55" stick length (approximate) + 28.5" arm length (world woman average) ~= 7ft
+#essentially, 7ft is their reach ability)
 num_def_near_pl_f = function(new_wider){
   mini_list = list()
-  for(pass in 1:322){
+  n1 = nrow(new_wider)
+  for(pass in 1:n1){
     mini_list = append(mini_list, length(which(unnest(new_wider[pass, 5])$dist_from_pl <= 7)))
   }
   return(mini_list)
@@ -987,7 +982,8 @@ num_def_near_pl_f = function(new_wider){
 
 pass_rushed_f = function(new_wider){
   mini_list = list()
-  for(pass in 1:322){
+  n1 = nrow(new_wider)
+  for(pass in 1:n1){
     mini_list = append(mini_list, ifelse(min(unnest(new_wider[pass, 5])$dist_from_passer, na.rm = TRUE) <= 7, 1, 0))
   }
   return(mini_list)
@@ -995,11 +991,34 @@ pass_rushed_f = function(new_wider){
 
 reciever_crowded_f = function(new_wider){
   mini_list = list()
-  for(pass in 1:322){
+  n1 = nrow(new_wider)
+  for(pass in 1:n1){
     mini_list = append(mini_list, ifelse(min(unnest(new_wider[pass, 5])$dist_from_reciever, na.rm = TRUE) <= 7, 1, 0))
   }
   return(mini_list)
 }
+
+###########
+num_def_f = function(df){
+  mini_list = list()
+  n1 = nrow(df)
+  for(pass in 1:n1){
+    mini_list = append(mini_list, length(which(unnest(df[pass, 5])$venue_t != unnest(df[pass, 5])$venue)))
+  }
+  return(mini_list)
+}
+
+num_off_f = function(df){
+  mini_list = list()
+  n1 = nrow(df)
+  for(pass in 1:n1){
+    mini_list = append(mini_list, length(which(unnest(df[pass, 5])$venue_t == unnest(df[pass, 5])$venue)))
+  }
+  return(mini_list)
+}
+################
+
+
 
 new_wider$min_dist_from_pl = min_from_pl_f(new_wider)
 
@@ -1009,10 +1028,62 @@ new_wider$pass_rushed = pass_rushed_f(new_wider)
 
 new_wider$reciever_crowded = reciever_crowded_f(new_wider)
 
+################
+#three_off_and_def_check$min_dist_from_pl = min_from_pl_f(three_off_and_def_check)
+#three_off_and_def_check$num_def_near_pl = num_def_near_pl_f(three_off_and_def_check)
+#three_off_and_def_check$pass_rushed = pass_rushed_f(three_off_and_def_check)
+#three_off_and_def_check$reciever_crowded = reciever_crowded_f(three_off_and_def_check)
+three_off_and_def_check$num_def_tr = num_def_f(three_off_and_def_check)
+three_off_and_def_check$num_off_tr = num_off_f(three_off_and_def_check)
 
-factor_variable_passes = new_wider
+test1_df = subset(three_off_and_def_check, num_def_tr >= 3 & num_def_tr <= 4 &
+                   num_off_tr >= 3 & num_off_tr <= 5)
+test1_df$min_dist_from_pl = min_from_pl_f(test_df)
+test1_df$num_def_near_pl = num_def_near_pl_f(test_df)
+test1_df$pass_rushed = pass_rushed_f(test_df)
+test1_df$reciever_crowded = reciever_crowded_f(test_df)
 
-factor_variable_passes$data = NULL
+test1_df$data = NULL
+
+test1_df = merge(test1_df, event_PP_passes, 
+                               by = c("player_name", 
+                                      "clock_seconds", "x_coord", "y_coord"), all.x = TRUE)
+
+test1_df$event_detail_1 = NULL
+test1_df$event_detail_2 = NULL
+test1_df$event_detail_3 = NULL
+
+
+#################
+
+powerplay_pass = test1_df
+
+# Convert event_successful to binary
+powerplay_pass$event_successful <- ifelse(powerplay_pass$event_successful == "t", 1, 0)
+
+# Run logistic regression on event_successful
+
+
+powerplay_pass$min_dist_from_pl <- unlist(powerplay_pass$min_dist_from_pl)
+powerplay_pass$num_def_near_pl <- unlist(powerplay_pass$num_def_near_pl)
+powerplay_pass$pass_rushed <- unlist(powerplay_pass$pass_rushed)
+powerplay_pass$reciever_crowded <- sapply(powerplay_pass$reciever_crowded, toString)
+
+
+#pass_completion_prob <- glm(event_successful ~ min_dist_from_pl + num_def_near_pl 
+                            #+ as.factor(pass_rushed) 
+                            #+ as.factor(reciever_crowded) + as.factor(pass_cluster),
+                            #data = powerplay_pass, 
+                            #family = binomial)
+
+# Model results
+#summary(pass_completion_prob)
+
+
+
+#factor_variable_passes = new_wider
+
+#factor_variable_passes$data = NULL
 
 
 
@@ -1025,10 +1096,10 @@ event_PP_passes = rbind(event_G1_PP1, event_G1_PP2, event_G1_PP3, event_G1_PP5, 
   
 event_PP_passes = subset(event_PP_passes, event == "Play")
 
-factor_variable_passes = merge(factor_variable_passes, event_PP_passes, 
+#factor_variable_passes = merge(factor_variable_passes, event_PP_passes, 
                                by = c("player_name", 
                                "clock_seconds", "x_coord", "y_coord"), all.x = TRUE)
-factor_variable_passes$event_detail_1 = NULL
-factor_variable_passes$event_detail_2 = NULL
-factor_variable_passes$event_detail_3 = NULL
+#factor_variable_passes$event_detail_1 = NULL
+#factor_variable_passes$event_detail_2 = NULL
+#factor_variable_passes$event_detail_3 = NULL
 
