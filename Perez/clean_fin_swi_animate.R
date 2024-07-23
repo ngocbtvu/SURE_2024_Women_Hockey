@@ -1,0 +1,183 @@
+#lets try again
+#now we know that we have to check the 'videShotsInfo' table to see what seconds are included in the tracking data
+
+library(tidyverse)
+library(gganimate)
+library(ggforce)
+library(dplyr)
+source("Perez/plot_rink.R")
+
+#loading all the power plays
+pp_numbers <- read.csv('https://raw.githubusercontent.com/bigdatacup/Big-Data-Cup-2021/main/TrackingData/pp_info.csv')
+
+#-------------------------------------------------------------------------
+
+#load all the play by play
+pbp_data = read.csv("https://raw.githubusercontent.com/bigdatacup/Big-Data-Cup-2021/main/pxp_womens_oly_2022_v2.csv")
+
+#filter into just power play goals
+pbp_pp_goals <- pbp_data |> 
+  filter(event == 'Shot') |> 
+  filter(event_successful == 't') |> 
+  filter(situation_type == '5 on 4')
+
+
+#-------------------------------------------------------------------------
+#LOAD the data
+fin_swi_track_clean <- read.csv('https://raw.githubusercontent.com/picagrad/Big-Data-Cup-2022/main/data/2022-02-16%20Switzerland%20at%20Finland/2022-02-16%20Switzerland%20at%20Finland%20P3%20PP7.csv')
+
+#Calculate the seconds_remaninig from the frame_id
+#not doing this anymore because we'd have to manually check the number of frames and time and how they line up
+#maybe doable in the future when 'perfecting' this work
+
+#CUT the tracking ddata to just those 10 seconds
+fin_swi_track_cut_clean <- fin_swi_track_clean |> 
+  filter(game_seconds>337 & game_seconds<348)
+
+#NEST the data (for the animation?)
+fin_swi_nested_clean = fin_swi_track_clean |> 
+  group_by(frame_id) |> 
+  nest()
+
+fin_swi_player_count_clean = fin_swi_nested_clean |> 
+  mutate(num_players = map(.x = data, .f = ~nrow(.x)))
+
+#-----------
+source("Perez/plot_rink.R")
+
+#Might need these libraries?
+library(ggtext)
+
+#install.packages('gapminder')
+library(gapminder)
+
+library(dplyr)
+
+
+#---------------------------------------------------------------------------
+#Now CUT the PBP DATA into just the 10 seconds leading to the goal
+
+#First cut to just the game
+pbp_fin_swi <- subset(pbp_data, 
+                        (grepl('Finland', team_name)) & 
+                          (grepl('Switzerland', opp_team_name)))
+
+#now cut it into the last 10 seconds before the goal
+#period 2, leading up to 982 seconds left
+fin_swi_pbp_goal <- pbp_fin_swi |> 
+  filter(period == 3) |> 
+  filter(clock_seconds>337 & clock_seconds<348)
+
+fin_swi_pbp_goal <- fin_swi_pbp_goal |> 
+  mutate(game_seconds = clock_seconds)
+
+#now fuzzy join the pbp and tracking data by the clock_seconds and seconds_remaining
+
+#i think i want a half second each way, or 0.4 seconds each way, 'll mess with it
+#i want the shots and passes ot actually remain on screen for a little bit
+library(dplyr)
+
+#install.packages("fuzzyjoin")
+
+# Load the package
+library(fuzzyjoin)
+
+#------------------------------------------
+#There's some weird mirroring stuff going on, this fixes that
+
+#fin_swi_pbp_goal <- fin_swi_pbp_goal |> 
+#  mutate(y_coord = ifelse(y_coord<42.5, y_coord, 42.5-abs(y_coord-42.5)),
+#         y_coord_2 = ifelse(y_coord_2<42.5, y_coord_2, 42.5-abs(y_coord_2-42.5)))
+
+fin_swi_pbp_goal <- fin_swi_pbp_goal |> 
+  mutate(y_coord = abs(y_coord-85)) |> 
+  mutate(y_coord_2 = abs(y_coord_2-85))
+
+
+#-------------
+
+#join the data, this still has the 'max_dist' line for a fuzzy join
+#in case someone wants to calculate the decimal seconds in the tracking data 
+#to make the animations a tiny bit more exact
+final_fin_swi_goal_clean <- difference_left_join(
+  fin_swi_track_cut_clean,
+  fin_swi_pbp_goal,
+  by = 'game_seconds',
+  max_dist = 0.35,
+  distance_col = NULL
+)
+
+#------------------------------------
+fin_swi_passes_clean <- final_fin_swi_goal_clean |> 
+  filter(event == 'Play')
+
+fin_swi_shots_clean <- final_fin_swi_goal_clean |> 
+  filter(event == 'Shot')
+
+fin_swi_recover_clean <- final_fin_swi_goal_clean |> 
+  filter(event == 'Puck Recovery')
+
+#don't use this, it messes up the legends, but could be useful in the future
+#fin_swi_points_clean <- final_fin_swi_goal_clean |> 
+# filter(event %in% c('Shot', 'Puck Recovery', 'Takeaway'))
+
+#------------------------------------
+#actually animating stuff
+#syntax is not the prettiest, but it works, can definitely follow convention better in the future
+
+fin_swi_goal_p_2_clean = plot_rink(ggplot(final_fin_swi_goal_clean)) +
+  geom_point(aes(x = x_ft, y = y_ft, fill = team_name.x), shape = 21, size = 6) +
+  geom_text(aes(x = x_ft, y = y_ft, label = jersey_number, colour = team_name.x), size = 3) +
+  scale_colour_manual(values = c("Switzerland" = "white", "Finland" = "navy")) +
+  scale_fill_manual(values = c("Switzerland" = "red", "Finland" = "white")) +
+  guides(colour = "none") +
+  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, face = "italic", hjust = 0.5))+
+  transition_time(frame_id) +
+  labs(title = 'Finland Power Play Goal',
+       subtitle = 'Game Clock: {floor((472-(frame_time)/30)/60)}:{ceiling((472-(frame_time)/30)%%60)}',
+       fill = "Team") +
+  ease_aes()+
+  NULL
+
+
+fin_swi_goal_p_2_clean <- fin_swi_goal_p_2_clean + 
+  geom_point(x = fin_swi_shots_clean$x_coord, y = fin_swi_shots_clean$y_coord, 
+             fill = 'green3', data = fin_swi_shots_clean, shape = 21, size = 6)+
+  geom_segment(x = final_fin_swi_goal_clean$x_coord, y = final_fin_swi_goal_clean$y_coord, 
+               xend = final_fin_swi_goal_clean$x_coord_2, yend = final_fin_swi_goal_clean$y_coord_2, colour = "skyblue",
+               linewidth = 1.2, arrow = arrow(length = unit(0.2, "inches")), data = final_fin_swi_goal_clean)+
+  geom_label(aes(label=str_wrap(final_fin_swi_goal_clean$x_coord,12), 
+                 x=((1/2)*(final_fin_swi_goal_clean$x_coord + final_fin_swi_goal_clean$x_coord_2)), 
+                 y=((1/2)*(final_fin_swi_goal_clean$y_coord + final_fin_swi_goal_clean$y_coord_2))))
+
+
+fin_swi_goal_p_2_clean <- fin_swi_goal_p_2_clean +
+  geom_point(x = fin_swi_recover_clean$x_coord, y = fin_swi_recover_clean$y_coord, 
+             fill = 'pink', data = fin_swi_recover_clean, shape = 21, size = 6)
+
+
+
+#this one is real speed and saves the video
+#animate(fin_swi_goal_p_2_clean, renderer=av_renderer('Perez/fin_swi.mp4'), duration = 10)
+
+#slowed down a tiny bit, without saving the video
+animate(fin_swi_goal_p_2_clean, renderer=av_renderer(), duration = 12)
+
+
+
+##THIS WAS FINLAND VS SWITZERLAND, POWER PLAY GOAL FOR FINLAND, P3 PP7
+
+#------------------------
+#------------------------
+#------------------------
+#------------------------
+
+
+
+
+
+
+
+
+
