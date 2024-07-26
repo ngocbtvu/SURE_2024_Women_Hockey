@@ -107,6 +107,10 @@ all_shots <-  all_shots |>
   mutate(X.Coordinate = X.Coordinate-100) |> 
   mutate(Y.Coordinate = Y.Coordinate-42.5)
 
+all_shots <-  all_shots |> 
+  mutate(X.Coordinate.2 = X.Coordinate.2-100) |> 
+  mutate(Y.Coordinate.2 = Y.Coordinate.2-42.5)
+
 
 offense_rink +
   geom_hex(data = all_shots, 
@@ -118,13 +122,14 @@ offense_rink +
                       high = "forestgreen")+
   facet_wrap(~ Detail.1, nrow = 3)
 
-
+top_shot_types <- filter(all_shots, Detail.1 %in% c('Snapshot', 'Deflection', 
+                                                    'Slapshot','Wristshot'))
 
 top_shot_types |> 
   count(Detail.1)
 
-top_shot_types <- filter(all_shots, Detail.1 %in% c('Snapshot', 'Deflection', 
-                                                    'Slapshot','Wristshot'))
+#top_shot_types <- filter(all_shots, Detail.1 %in% c('Snapshot', 'Deflection', 
+#                                                    'Slapshot','Wristshot'))
 
 offense_rink +
   geom_hex(data = top_shot_types, 
@@ -571,4 +576,243 @@ offense_rink +
 
 
 
+
 #-----------------------------------------------------------------------
+#making passes df
+
+library(tidyverse)
+library(dplyr)
+library(ggmosaic)
+library(devtools)
+library(ranger)
+library(glmnet)
+library(ggthemes)
+library(ggplot2)
+library(ggbeeswarm)
+library(GGally)
+library(tidyr)
+
+#install.packages('ggimage')
+library(ggimage)
+
+
+library(ggalluvial)
+library(sportyR)
+
+hock <- read.csv('Perez/women_hockey_data_with_sequence.csv')
+
+hock <- hock |> 
+  mutate(X.Coordinate = X.Coordinate-100) |> 
+  mutate(Y.Coordinate = Y.Coordinate-42.5)
+
+hock <- hock |> 
+  mutate(X.Coordinate.2 = X.Coordinate.2-100) |> 
+  mutate(Y.Coordinate.2 = Y.Coordinate.2-42.5)
+
+
+power_plays <- hock |> 
+  filter(Offense.Team.Skaters == 5 & Defense.Team.Skaters ==4)
+
+rink <- geom_hockey("nhl")
+
+rink
+
+offense_rink = geom_hockey('nhl', 'offense')
+
+pp_passes <- power_plays |> 
+  filter(Event %in% c('Play', 'Incomplete Play')) |> 
+  mutate(success = if_else(Event == 'Play', 1, 0))
+
+passes <- hock |> 
+  filter(Event %in% c('Play', 'Incomplete Play')) |> 
+  mutate(success = if_else(Event == 'Play', 1, 0))
+
+#-----------------------------------------------------------------------
+#Make heatmap of passes in rink
+
+#shading is completion%
+#hexmap
+
+#first map is pass origin
+#second map is pass target
+
+
+#library(patchwork)
+
+
+  
+rink + 
+  stat_summary_hex(data=pp_passes, aes(x = X.Coordinate.2, y = Y.Coordinate.2, 
+                                    z = success, group = -1),
+                   binwidth = c(4, 4), fun = mean, 
+                   color = "black", alpha= 0.6) +
+  scale_fill_gradient(low = "blue", 
+                      high = "red")+
+  theme(legend.position = "bottom") +
+  coord_fixed()+
+  labs(title = 'Pass Success by Rink Zone',
+       subtitle = 'Minimum of 25 Passes Recorded',
+       fill = 'Pass Success%')+
+  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, face = "italic", hjust = 0.5))+
+  theme(axis.line=element_blank(),axis.text.x=element_blank(),
+        axis.text.y=element_blank(),axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank())
+
+rink + 
+  stat_summary_hex(data=pp_passes, aes(x = X.Coordinate, y = Y.Coordinate, 
+                                       z = success, group = -1),
+                   binwidth = c(4, 4), fun = mean, 
+                   color = "black", alpha= 0.7) +
+  scale_fill_gradient(low = "blue", 
+                      high = "red")+
+  theme(legend.position = "bottom") +
+  coord_fixed()+
+  labs(title = 'Pass Success by Rink Zone',
+       subtitle = 'Minimum of 25 Passes Recorded',
+       fill = 'Pass Success%')+
+  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, face = "italic", hjust = 0.5))+
+  theme(axis.line=element_blank(),axis.text.x=element_blank(),
+        axis.text.y=element_blank(),axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank())
+
+
+
+
+
+
+
+
+
+
+rink+ pp_passes |>
+  ggplot(aes(x = X.Coordinate.2, y = Y.Coordinate.2, 
+             z = success)) +
+  stat_summary_hex(binwidth = c(13,13), fun = mean, 
+                   color = "black") +
+  scale_fill_gradient(low = "blanchedalmond", 
+                      high = "forestgreen") + 
+  theme(legend.position = "bottom") +
+  coord_fixed()
+
+rink +
+  theme_solarized()+
+  geom_hex(data = pp_passes, 
+           aes(x = X.Coordinate, Y.Coordinate, z= success), 
+           binwidth = c(6,6),
+           alpha=0.9,
+           fill = pp_passes$success)+
+  scale_fill_gradient(low = "lightgoldenrod", 
+                      high = "darkcyan")+
+  labs(title = 'Power Play Heatmaps',
+       subtitle = 'Minimum of 25 Events Recorded',
+       fill = 'Number of Events') +
+  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, face = "italic", hjust = 0.5))+
+  theme(axis.line=element_blank(),axis.text.x=element_blank(),
+        axis.text.y=element_blank(),axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank())
+
+#--------------------------------------
+
+source("Perez/plot_rink.R")
+pass_plot = plot_rink(ggplot(pp_passes))+
+  geom_hex(data = pp_passes, 
+           aes(x = pp_passes$X.Coordinate, y = pp_passes$Y.Coordinate), 
+           binwidth = c(6,6),
+           alpha=0.9,
+           fill = pp_passes$success)+
+  scale_fill_gradient(low = "lightgoldenrod", 
+                      high = "darkcyan")+
+  labs(title = 'Power Play Heatmaps',
+       subtitle = 'Minimum of 25 Events Recorded',
+       fill = 'Number of Events') +
+  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, face = "italic", hjust = 0.5))+
+  theme(axis.line=element_blank(),axis.text.x=element_blank(),
+        axis.text.y=element_blank(),axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank())
+
+pass_plot
+  
+  
+fin_swi_2_goal_p_2_clean = plot_rink(ggplot(final_fin_swi_2_goal_clean)) +
+  geom_point(aes(x = x_ft, y = y_ft, fill = team_name.x), shape = 21, size = 6) +
+  geom_text(aes(x = x_ft, y = y_ft, label = jersey_number, colour = team_name.x), size = 3) +
+  scale_colour_manual(values = c("Switzerland" = "white", "Finland" = "navy")) +
+  scale_fill_manual(values = c("Switzerland" = "red", "Finland" = "white")) +
+  guides(colour = "none") +
+  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+        plot.subtitle = element_text(size = 12, face = "italic", hjust = 0.5))+
+  transition_time(frame_id)+
+  labs(title = 'Finland Power Play Goal',
+       subtitle = 'Game Clock: {floor((192-(frame_time)/30)/60)}:{ceiling((192-(frame_time)/30)%%60)}',
+       fill = "Team") +
+  ease_aes()+
+  
+  
+#----------------
+library(hexbin)
+
+hex_bins <- hexbin(pp_passes$X.Coordinate, pp_passes$Y.Coordinate, xbins = 30)
+
+# Add hexbin cell IDs to the data
+pp_passes$cell <- hex_bins@cID
+
+# Calculate mean success for each hex bin
+agg_data <- pp_passes %>%
+  group_by(cell) %>%
+  summarize(
+    mean_success = mean(success, na.rm = TRUE),
+    x = hex_bins@xcm[match(cell, hex_bins@cID)],
+    y = hex_bins@ycm[match(cell, hex_bins@cID)]
+  )
+
+
+source("Perez/plot_rink.R")
+
+# Create the plot
+pass_plot <- plot_rink(ggplot(agg_data) +
+                         geom_tile(aes(x = x, y = y, fill = mean_success), 
+                                   width = diff(hex_bins@xbnds) / hex_bins@xbins, 
+                                   height = diff(hex_bins@ybnds) / hex_bins@xbins, 
+                                   alpha = 0.9) +
+                         scale_fill_gradient(low = "lightgoldenrod", 
+                                             high = "darkcyan") +
+                         labs(title = 'Power Play Heatmaps',
+                              subtitle = 'Completion Percentage by Hex Bin',
+                              fill = 'Completion %') +
+                         theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+                               plot.subtitle = element_text(size = 12, face = "italic", hjust = 0.5)) +
+                         theme(axis.line = element_blank(),
+                               axis.text.x = element_blank(),
+                               axis.text.y = element_blank(),
+                               axis.ticks = element_blank(),
+                               axis.title.x = element_blank(),
+                               axis.title.y = element_blank(),
+                               panel.background = element_blank(),
+                               panel.border = element_blank(),
+                               panel.grid.major = element_blank(),
+                               panel.grid.minor = element_blank())
+)
+
+# Display the plot
+print(pass_plot)
+
+  
+  
+  
+  

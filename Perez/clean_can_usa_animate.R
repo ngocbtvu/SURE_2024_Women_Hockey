@@ -7,6 +7,10 @@ library(ggforce)
 library(dplyr)
 source("Perez/plot_rink.R")
 
+library(formattable)
+
+pass_model = read.csv('Perez/pass_model copy.csv')
+
 #loading all the power plays
 pp_numbers <- read.csv('https://raw.githubusercontent.com/bigdatacup/Big-Data-Cup-2021/main/TrackingData/pp_info.csv')
 
@@ -14,6 +18,10 @@ pp_numbers <- read.csv('https://raw.githubusercontent.com/bigdatacup/Big-Data-Cu
 
 #load all the play by play
 pbp_data = read.csv("https://raw.githubusercontent.com/bigdatacup/Big-Data-Cup-2021/main/pxp_womens_oly_2022_v2.csv")
+
+pbp_data <- pbp_data |> 
+  left_join(select(pass_model, game_date, period, clock_seconds, event, x_coord, y_coord, min_dist_from_pl_def_percent, sec_dist_from_pl_def_percent), 
+            by = c('game_date', 'period', 'clock_seconds', 'event', 'x_coord', 'y_coord'))
 
 #filter into just power play goals
 pbp_pp_goals <- pbp_data |> 
@@ -122,9 +130,9 @@ can_usa_goal_p_2_clean <- can_usa_goal_p_2_clean +
   geom_segment(x = can_usa_passes_clean$x_coord, y = can_usa_passes_clean$y_coord, 
                xend = can_usa_passes_clean$x_coord_2, yend = can_usa_passes_clean$y_coord_2, colour = "skyblue",
                linewidth = 1.2, arrow = arrow(length = unit(0.2, "inches")), data = can_usa_passes_clean)+
-  geom_label(aes(label=str_wrap(final_can_usa_goal_clean$x_coord,10), 
+  geom_label(aes(label=str_wrap(percent((min_dist_from_pl_def_percent), accuracy = 0.1), 12)), 
                  x=((1/2)*(final_can_usa_goal_clean$x_coord + final_can_usa_goal_clean$x_coord_2)), 
-                 y=((1/2)*(final_can_usa_goal_clean$y_coord + final_can_usa_goal_clean$y_coord_2))))
+                 y=((1/2)*(final_can_usa_goal_clean$y_coord + final_can_usa_goal_clean$y_coord_2)))
 
 
 #can_usa_goal_p_2_clean <- can_usa_goal_p_2_clean +
@@ -133,7 +141,7 @@ can_usa_goal_p_2_clean <- can_usa_goal_p_2_clean +
 
 
 #this one is real speed and saves the video
-#animate(can_usa_goal_p_2_clean, renderer=av_renderer('Perez/can_usa.mp4'), duration = 10)
+animate(can_usa_goal_p_2_clean, renderer=av_renderer('Perez/can_usa.mp4'), duration = 10)
 
 #slowed down a tiny bit, without saving the video
 animate(can_usa_goal_p_2_clean, renderer=av_renderer(), duration = 12)

@@ -7,6 +7,11 @@ library(ggforce)
 library(dplyr)
 source("Perez/plot_rink.R")
 
+library(formattable)
+
+#test = read.csv('Perez/final_test_1 copy.csv')
+pass_model = read.csv('Perez/pass_model copy.csv')
+
 #loading all the power plays
 pp_numbers <- read.csv('https://raw.githubusercontent.com/bigdatacup/Big-Data-Cup-2021/main/TrackingData/pp_info.csv')
 
@@ -14,6 +19,11 @@ pp_numbers <- read.csv('https://raw.githubusercontent.com/bigdatacup/Big-Data-Cu
 
 #load all the play by play
 pbp_data = read.csv("https://raw.githubusercontent.com/bigdatacup/Big-Data-Cup-2021/main/pxp_womens_oly_2022_v2.csv")
+
+pbp_data <- pbp_data |> 
+  left_join(select(pass_model, game_date, period, clock_seconds, event, x_coord, y_coord, min_dist_from_pl_def_percent, sec_dist_from_pl_def_percent), 
+            by = c('game_date', 'period', 'clock_seconds', 'event', 'x_coord', 'y_coord'))
+
 
 #filter into just power play goals
 pbp_pp_goals <- pbp_data |> 
@@ -120,6 +130,37 @@ swi_can_recover_clean <- final_swi_can_goal_clean |>
 #actually animating stuff
 #syntax is not the prettiest, but it works, can definitely follow convention better in the future
 
+#swi_can_goal_p_2_clean = plot_rink(ggplot(final_swi_can_goal_clean)) +
+#  geom_point(aes(x = x_ft, y = y_ft, fill = team_name.x), shape = 21, size = 6) +
+#  geom_text(aes(x = x_ft, y = y_ft, label = jersey_number, colour = team_name.x), size = 3) +
+#  scale_colour_manual(values = c("Switzerland" = "white", "Canada" = "red")) +
+#  scale_fill_manual(values = c("Switzerland" = "red", "Canada" = "white")) +
+#  guides(colour = "none") +
+#  theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+#        plot.subtitle = element_text(size = 12, face = "italic", hjust = 0.5))+
+#  transition_time(frame_id) +
+#  labs(title = 'Switzerland Power Play Goal',
+#       subtitle = 'Game Clock: {floor((219-(frame_time)/30)/60)}:{ceiling((219-(frame_time)/30)%%60)}',
+#       fill = "Team") +
+#  ease_aes()+
+#  NULL
+
+
+#swi_can_goal_p_2_clean <- swi_can_goal_p_2_clean + 
+#  geom_point(x = swi_can_shots_clean$x_coord, y = swi_can_shots_clean$y_coord, 
+#             fill = 'green3', data = swi_can_shots_clean, shape = 21, size = 6) +
+#  geom_segment(x = swi_can_passes_clean$x_coord, y = swi_can_passes_clean$y_coord, 
+#               xend = swi_can_passes_clean$x_coord_2, yend = swi_can_passes_clean$y_coord_2, colour = "skyblue",
+#               linewidth = 1.2, arrow = arrow(length = unit(0.2, "inches")), data = swi_can_passes_clean) +
+#  geom_label(aes(label=str_wrap(percent((min_dist_from_pl_def_percent), accuracy = 0.1), 12)), 
+#             x=((1/2)*(final_swi_can_goal_clean$x_coord + final_swi_can_goal_clean$x_coord_2)), 
+#             y=((1/2)*(final_swi_can_goal_clean$y_coord + final_swi_can_goal_clean$y_coord_2)))+
+
+
+#swi_can_goal_p_2_clean <- swi_can_goal_p_2_clean +
+#  geom_point(x = swi_can_recover_clean$x_coord, y = swi_can_recover_clean$y_coord, 
+#             fill = 'pink', data = swi_can_recover_clean, shape = 21, size = 6)
+
 swi_can_goal_p_2_clean = plot_rink(ggplot(final_swi_can_goal_clean)) +
   geom_point(aes(x = x_ft, y = y_ft, fill = team_name.x), shape = 21, size = 6) +
   geom_text(aes(x = x_ft, y = y_ft, label = jersey_number, colour = team_name.x), size = 3) +
@@ -132,30 +173,20 @@ swi_can_goal_p_2_clean = plot_rink(ggplot(final_swi_can_goal_clean)) +
   labs(title = 'Switzerland Power Play Goal',
        subtitle = 'Game Clock: {floor((219-(frame_time)/30)/60)}:{ceiling((219-(frame_time)/30)%%60)}',
        fill = "Team") +
-  ease_aes()+
-  NULL
-
-
-swi_can_goal_p_2_clean <- swi_can_goal_p_2_clean + 
   geom_point(x = swi_can_shots_clean$x_coord, y = swi_can_shots_clean$y_coord, 
-             fill = 'green3', data = swi_can_shots_clean, shape = 21, size = 6)+
+             fill = 'green3', data = swi_can_shots_clean, shape = 21, size = 6) +
   geom_segment(x = swi_can_passes_clean$x_coord, y = swi_can_passes_clean$y_coord, 
                xend = swi_can_passes_clean$x_coord_2, yend = swi_can_passes_clean$y_coord_2, colour = "skyblue",
-               linewidth = 1.2, arrow = arrow(length = unit(0.2, "inches")), data = swi_can_passes_clean)+
-  geom_label(aes(label=str_wrap(final_swi_can_goal_clean$x_coord,10), 
-                 x=((1/2)*(final_swi_can_goal_clean$x_coord + final_swi_can_goal_clean$x_coord_2)), 
-                 y=((1/2)*(final_swi_can_goal_clean$y_coord + final_swi_can_goal_clean$y_coord_2))))
-
-
-
-swi_can_goal_p_2_clean <- swi_can_goal_p_2_clean +
+               linewidth = 1.2, arrow = arrow(length = unit(0.2, "inches")), data = swi_can_passes_clean) +
+  geom_label(aes(label=str_wrap(percent((min_dist_from_pl_def_percent), accuracy = 0.1), 12)), 
+             x=((1/2)*(final_swi_can_goal_clean$x_coord + final_swi_can_goal_clean$x_coord_2)), 
+             y=((1/2)*(final_swi_can_goal_clean$y_coord + final_swi_can_goal_clean$y_coord_2)))+
   geom_point(x = swi_can_recover_clean$x_coord, y = swi_can_recover_clean$y_coord, 
              fill = 'pink', data = swi_can_recover_clean, shape = 21, size = 6)
-
 #------------------------
 
 #this one is real speed and saves the video
-#animate(swi_can_goal_p_2_clean, renderer=av_renderer('Perez/swi_can.mp4'), duration = 10)
+animate(swi_can_goal_p_2_clean, renderer=av_renderer('Perez/swi_can.mp4'), duration = 10)
 
 #slowed down a tiny bit, without saving the video
 animate(swi_can_goal_p_2_clean, renderer=av_renderer(), duration = 12)
