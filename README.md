@@ -3,6 +3,10 @@
 ## Overview
 This project was conducted during the **CMU Sports Analytics Camp**. We explored the dynamics of passes during power plays and how defensive actions influence the success rate of offensive plays using data from the **Big Data Cup** competitions. The goal is to quantify defensive impact during these events. 
 
+- [Report](https://www.stat.cmu.edu/cmsac/sure/2024/showcase/hockey_sabres/report.html)
+- [Poster](https://www.stat.cmu.edu/cmsac/sure/2024/showcase/hockey_sabres/poster.pdf)
+- [Presentation](https://www.stat.cmu.edu/cmsac/sure/2024/showcase/hockey_sabres/slides.pdf)
+
 ## Introduction
 In ice hockey, a **penalty kill** occurs when a team is down one or more players due to a penalty, giving the opposing team a numerical advantage, known as a **power play**. Effective defense during a penalty kill is crucial as the offense is more likely to score. Our project focuses on analyzing defensive actions that disrupt passes during power plays, as stalling the offense is key to a successful penalty kill.
 
