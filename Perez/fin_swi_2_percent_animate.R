@@ -131,6 +131,17 @@ fin_swi_2_points_clean <- final_fin_swi_2_goal_clean |>
 #-------------------
 library(scales)
 
+
+final_fin_swi_2_goal_clean <- final_fin_swi_2_goal_clean|>
+  mutate(clock = case_when(game_seconds.x > 60 ~ paste(as.character((floor(final_fin_swi_2_goal_clean$game_seconds.x/60))), 
+                                                       as.character((final_fin_swi_2_goal_clean$game_seconds.x)-60), 
+                                                       sep = ':0'),
+                           game_seconds.x == 60 ~ '1:00',
+                           game_seconds.x < 60 ~ paste('0', 
+                                                       as.character((final_fin_swi_2_goal_clean$game_seconds.x)), 
+                                                       sep = ':')))
+
+
 fin_swi_2_goal_p_2_clean = plot_rink(ggplot(final_fin_swi_2_goal_clean)) +
   geom_point(aes(x = x_ft, y = y_ft, fill = team_name.x), shape = 21, size = 6) +
   geom_text(aes(x = x_ft, y = y_ft, label = jersey_number, colour = team_name.x), size = 3) +
@@ -139,10 +150,10 @@ fin_swi_2_goal_p_2_clean = plot_rink(ggplot(final_fin_swi_2_goal_clean)) +
   guides(colour = "none") +
   theme(plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
         plot.subtitle = element_text(size = 12, face = "italic", hjust = 0.5))+
-  transition_time(frame_id)+
   labs(title = 'Finland Power Play Goal',
-       subtitle = 'Game Clock: {floor((192-(frame_time)/30)/60)}:{ceiling((192-(frame_time)/30)%%60)}',
+       subtitle = 'Game Clock: {final_fin_swi_2_goal_clean |> filter (frame_id == frame_time) |> pull(clock)}',
        fill = "Team") +
+  transition_time(frame_id)+
   ease_aes()+
   geom_point(x = fin_swi_2_shots_clean$x_coord, y = fin_swi_2_shots_clean$y_coord, 
              fill = 'green3', data = fin_swi_2_shots_clean, shape = 21, size = 6)+
@@ -155,10 +166,6 @@ fin_swi_2_goal_p_2_clean = plot_rink(ggplot(final_fin_swi_2_goal_clean)) +
   geom_point(x = fin_swi_2_recover_clean$x_coord, y = fin_swi_2_recover_clean$y_coord, 
              fill = 'pink', data = fin_swi_2_recover_clean, shape = 21, size = 6)
 
-#------------------------------------
-# possible substitution for the game clock subtitle
-# subtitle = 'Finland vs Switzerland Bronze Medal Game, 02-16-2022, Goal with 57s left in 3rd Period'
-# include whatever is deemed necessary/useful
 
 #------------------------------------
 
